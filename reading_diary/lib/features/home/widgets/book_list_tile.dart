@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:reading_diary/features/home/widgets/book_detail_screen.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:reading_diary/features/home/widgets/cover_image.dart';
+
 import '../../../models/book.dart';
 
 class BookListTile extends StatelessWidget {
@@ -15,14 +19,8 @@ class BookListTile extends StatelessWidget {
       leading: AspectRatio(
         aspectRatio: 3 / 4,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: book.coverUrl != null
-              ? Image.network(book.coverUrl!, fit: BoxFit.cover)
-              : Container(
-                  color: Theme.of(context).colorScheme.surfaceVariant,
-                  child: const Icon(Icons.menu_book_outlined),
-                ),
-        ),
+            borderRadius: BorderRadius.circular(8),
+            child: CoverImage(coverRef: book.coverUrl)),
       ),
       title: Text(book.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Column(

@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../models/book.dart';
 import '../../../models/reading_entry.dart';
 import '../../../store/book_dao.dart';
 import '../../../store/entry_dao.dart';
+import 'cover_image.dart';
 
 class BookDetailScreen extends StatefulWidget {
   final int bookId; // int로 변경
@@ -55,6 +59,51 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
         appBar: AppBar(
           title: Text(book.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           bottom: const TabBar(tabs: [Tab(text: '진행률'), Tab(text: '세션 기록')]),
+          actions: [
+            IconButton(
+              tooltip: '편집',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () async {
+                final ok = await showModalBottomSheet<bool>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => _EditBookSheet(book: book, bookDao: _bookDao),
+                );
+                if (ok == true) await _reload();
+              },
+            ),
+            IconButton(
+              tooltip: '삭제',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: () async {
+                final entryCount = await _bookDao.countEntriesOf(book.id);
+                final sure = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('책 삭제'),
+                    content: Text(
+                      entryCount == 0
+                          ? '정말 이 책을 삭제할까요?'
+                          : '이 책과 연결된 세션 $entryCount건도 함께 삭제됩니다. 계속할까요?',
+                    ),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('취소')),
+                      FilledButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('삭제')),
+                    ],
+                  ),
+                );
+                if (sure == true) {
+                  await _bookDao.deleteBook(book.id);
+                  if (!mounted) return;
+                  Navigator.pop(context); // 상세 화면 닫기
+                }
+              },
+            ),
+          ],
         ),
         floatingActionButton: Builder(
           builder: (context) {
@@ -172,7 +221,7 @@ class _ProgressTab extends StatelessWidget {
 
         // 상태 변경 드롭다운
         DropdownButtonFormField<BookStatus>(
-          value: book.status,
+          initialValue: book.status,
           decoration: const InputDecoration(
             labelText: '상태 변경',
             border: OutlineInputBorder(),
@@ -213,14 +262,7 @@ class _Cover extends StatelessWidget {
       width: 96,
       height: 128,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: coverUrl != null
-            ? Image.network(coverUrl!, fit: BoxFit.cover)
-            : Container(
-                color: Theme.of(context).colorScheme.surfaceVariant,
-                child: const Icon(Icons.menu_book_outlined),
-              ),
-      ),
+          borderRadius: BorderRadius.circular(8), child: CoverImage(coverRef: coverUrl)),
     );
   }
 }
@@ -415,4 +457,155 @@ class _AddSessionSheetState extends State<_AddSessionSheet> {
   String _fmt(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')} '
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+class _EditBookSheet extends StatefulWidget {
+  final Book book;
+  final BookDao bookDao;
+
+  const _EditBookSheet({required this.book, required this.bookDao});
+
+  @override
+  State<_EditBookSheet> createState() => _EditBookSheetState();
+}
+
+class _EditBookSheetState extends State<_EditBookSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _authorCtrl;
+  late final TextEditingController _coverCtrl;
+  late final TextEditingController _pagesCtrl;
+
+  final ImagePicker _picker = ImagePicker();
+  XFile? _pickedImageFile;
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _pickedImageFile = picked;
+        _coverCtrl.text = picked.path;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl = TextEditingController(text: widget.book.title);
+    _authorCtrl = TextEditingController(text: widget.book.author);
+    _coverCtrl = TextEditingController(text: widget.book.coverUrl ?? '');
+    _pagesCtrl =
+        TextEditingController(text: widget.book.totalPages?.toString() ?? '');
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _authorCtrl.dispose();
+    _coverCtrl.dispose();
+    _pagesCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: inset),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: Form(
+          key: _formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // 미리보기
+            if (_pickedImageFile != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(File(_pickedImageFile!.path),
+                    width: 100, height: 140, fit: BoxFit.cover),
+              ),
+            const SizedBox(height: 8),
+            Text('책 정보 편집', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _coverCtrl,
+                    decoration: const InputDecoration(
+                      labelText: '표지 URL',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.photo_library),
+                  onPressed: _pickImage,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _titleCtrl,
+              decoration: const InputDecoration(
+                  labelText: '제목 *',
+                  border: OutlineInputBorder(),
+                  isDense: true),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '제목을 입력하세요' : null,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _authorCtrl,
+              decoration: const InputDecoration(
+                  labelText: '저자', border: OutlineInputBorder(), isDense: true),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _pagesCtrl,
+              decoration: const InputDecoration(
+                  labelText: '총 페이지(숫자)',
+                  border: OutlineInputBorder(),
+                  isDense: true),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('취소'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () async {
+                    if (_formKey.currentState?.validate() != true) return;
+                    final pages = int.tryParse(_pagesCtrl.text.trim());
+                    await widget.bookDao.updateBook(
+                      id: widget.book.id,
+                      title: _titleCtrl.text.trim(),
+                      author: _authorCtrl.text.trim(),
+                      coverUrl: _coverCtrl.text.trim().isEmpty
+                          ? null
+                          : _coverCtrl.text.trim(),
+                      totalPages: pages,
+                      coverFile: _pickedImageFile,
+                    );
+                    if (!mounted) return;
+                    Navigator.pop(context, true);
+                  },
+                  child: const Text('저장'),
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
 }

@@ -38,6 +38,7 @@ dependencies:
   isar: any
   isar_flutter_libs: any
   path_provider: any
+  image_picker: any
 
 dev_dependencies:
   flutter_test:
