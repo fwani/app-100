@@ -20,7 +20,7 @@ class PostOut(BaseModel):
     shot_at: datetime | None
     created_at: datetime
 
-    class Config: orm_mode = True
+    class Config: from_attributes = True
 
 
 class CommentIn(BaseModel):
@@ -35,4 +35,4 @@ class CommentOut(BaseModel):
     text: str
     created_at: datetime
 
-    class Config: orm_mode = True
+    class Config: from_attributes = True

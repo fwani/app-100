@@ -22,4 +22,4 @@ class PlaceOut(BaseModel):
     visited_at: datetime | None
     note: str | None
 
-    class Config: orm_mode = True
+    class Config: from_attributes = True

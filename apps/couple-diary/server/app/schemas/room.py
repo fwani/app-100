@@ -5,7 +5,7 @@ class RoomOut(BaseModel):
     id: int
     code: str
 
-    class Config: orm_mode = True
+    class Config: from_attributes = True
 
 
 class RoomCreateOut(BaseModel):

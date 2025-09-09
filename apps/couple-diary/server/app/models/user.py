@@ -1,8 +1,8 @@
 from typing import List
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String
-from db.base import Base
-from models.mixins import IdPkMixin, TimestampMixin
+from app.db.base import Base
+from app.models.mixins import IdPkMixin, TimestampMixin
 
 class User(IdPkMixin, TimestampMixin, Base):
     __tablename__ = "app_user"

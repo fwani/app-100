@@ -18,4 +18,4 @@ class AnnivOut(BaseModel):
     repeat_unit: str | None
     note: str | None
 
-    class Config: orm_mode = True
+    class Config: from_attributes = True

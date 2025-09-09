@@ -1,12 +1,15 @@
+from typing import Type
+
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from starlette import status
 
 from jose import JWTError
-from core.config import settings
-from core.security import decode_token
-from deps.common import get_db
+from app.core.config import settings
+from app.core.security import decode_token
+from app.deps.common import get_db
+from app.models import User, RoomMember, Room
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -14,7 +17,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 def get_current_user(
         token: str = Depends(oauth2_scheme),
         db: Session = Depends(get_db)
-) -> User:
+) -> Type[User]:
     cred_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid credentials",
@@ -41,7 +44,7 @@ def ensure_room_member(room_id: int, user: User, db: Session):
         raise HTTPException(status_code=403, detail="Not a member of this room")
 
 
-def get_room_or_404(room_id: int, db: Session) -> Room:
+def get_room_or_404(room_id: int, db: Session) -> Type[Room]:
     room = db.query(Room).filter(Room.id == room_id).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
