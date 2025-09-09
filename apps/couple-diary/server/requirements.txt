@@ -9,4 +9,4 @@ alembic==1.16.5
 psycopg2-binary==2.9.10
 python-jose==3.5.0
 python-multipart==0.0.20
-bcrypt==4.3.0
+bcrypt==3.2.2
